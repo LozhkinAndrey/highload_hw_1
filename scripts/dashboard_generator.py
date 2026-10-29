@@ -7,10 +7,8 @@
 import os
 import sys
 import time
-from urllib.parse import urlsplit
 
 import requests
-from grafana_client import GrafanaApi
 
 GRAFANA_URL = os.environ.get("GRAFANA_URL", "http://grafana:3000")
 GRAFANA_USER = os.environ.get("GRAFANA_ADMIN_USER", "admin")
@@ -177,37 +175,81 @@ def build_dashboard(handlers: list) -> dict:
         y += 9  # 1 на строку-заголовок + 8 на панели
 
     return {
-        "title": DASHBOARD_TITLE,
-        "uid": "items-golden-signals",
+        "annotations": {
+            "list": []
+        },
         "editable": False,
+        "gnetId": None,
         "graphTooltip": 0,
-        "refresh": "5s",
-        "time": {"from": "now-15m", "to": "now"},
-        "timezone": "browser",
+        "id": None,
+        "iteration": 1,
+        "links": [],
+        "panels": panels,
         "schemaVersion": 39,
-        "version": 1,
+        "style": "dark",
         "tags": ["ddia", "homework-1"],
         "templating": build_variables(),
-        "panels": panels,
+        "time": {
+            "from": "now-15m",
+            "to": "now"
+        },
+        "timepicker": {
+            "refresh_intervals": [
+                "5s",
+                "10s",
+                "30s",
+                "1m",
+                "5m",
+                "15m",
+                "30m",
+                "1h",
+                "2h",
+                "1d"
+            ],
+            "time_options": [
+                "5m",
+                "15m",
+                "1h",
+                "6h",
+                "12h",
+                "24h",
+                "2d",
+                "7d",
+                "30d"
+            ]
+        },
+        "timezone": "browser",
+        "title": DASHBOARD_TITLE,
+        "uid": "items-golden-signals",
+        "version": 1
     }
 
 
 def push_dashboard(dashboard: dict):
-    parts = urlsplit(GRAFANA_URL)
-    grafana = GrafanaApi(
-        auth=(GRAFANA_USER, GRAFANA_PASSWORD),
-        host=parts.hostname,
-        port=parts.port or (443 if parts.scheme == "https" else 80),
-        protocol=parts.scheme or "http",
-    )
+    """Публикует дашборд напрямую через REST API Grafana.
+
+    Grafana ожидает тело вида {"dashboard": {...}, "overwrite": true}.
+    Ответ сервера печатаем целиком — чтобы любая ошибка была видна в логах.
+    """
+    payload = {"dashboard": dashboard, "overwrite": True}
     for attempt in range(10):
         try:
-            result = grafana.dashboard.create_dashboard(dashboard=dashboard, overwrite=True)
-            print(f"Дашборд создан/обновлён: {result}", flush=True)
-            return
-        except Exception as exc:
+            resp = requests.post(
+                f"{GRAFANA_URL}/api/dashboards/db",
+                json=payload,
+                auth=(GRAFANA_USER, GRAFANA_PASSWORD),
+                timeout=10,
+            )
+            if resp.ok:
+                print(f"Дашборд создан/обновлён: {resp.json()}", flush=True)
+                return
+            print(
+                f"Попытка {attempt + 1}: HTTP {resp.status_code}, ответ: {resp.text}",
+                flush=True,
+            )
+        except requests.RequestException as exc:
             print(f"Попытка {attempt + 1} не удалась: {exc}", flush=True)
-            time.sleep(5)
+        time.sleep(5)
     raise RuntimeError("Не удалось создать дашборд в Grafana")
 
 
