@@ -88,3 +88,7 @@ requests-html требует браузерный движок pyppeteer и не
 ## Остановка
 
     docker compose down
+
+## Ссылка на скринкаст
+
+https://disk.yandex.ru/i/6fqSfY7z5gj7Sg
