@@ -1,4 +1,4 @@
-# Golden Signals: мониторинг микросервиса (DevOps HW-1)
+# Golden Signals: мониторинг микросервиса (HW-1)
 
 Pet-проект: CRUD-микросервис на Flask с метриками Prometheus (latency, traffic,
 errors — три золотых сигнала), автоматическая генерация дашборда Grafana и
